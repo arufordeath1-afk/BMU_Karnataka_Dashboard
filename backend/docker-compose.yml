@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: india_post
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    # Not consumed by the API in this build (no caching/Celery wired in yet).
+    # Left running so you can plug in FastAPI-Cache/Celery without extra infra work.
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/india_post
+      SECRET_KEY: change-this-to-a-long-random-string
+      CORS_ORIGINS: "*"
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             python -m app.seed_data &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  pgdata:

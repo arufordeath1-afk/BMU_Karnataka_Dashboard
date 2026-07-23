@@ -1,0 +1,36 @@
+databases:
+  - name: india-post-db
+    plan: free
+    databaseName: india_post
+    user: india_post
+
+services:
+  # --- Backend API ---
+  - type: web
+    runtime: python
+    name: india-post-api
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m alembic upgrade head && python -m app.seed_data && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: india-post-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"           # tighten to your frontend's exact URL once you know it
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+
+  # --- Frontend (static HTML) ---
+  - type: web
+    runtime: static
+    name: india-post-dashboard
+    plan: free
+    rootDir: frontend
+    buildCommand: >
+      sed -i "s|__API_BASE__|https://india-post-api.onrender.com|g" index.html
+    staticPublishPath: .
